@@ -1,0 +1,26 @@
+name: Mirror voice model
+on:
+  push:
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  mirror:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download model from Hugging Face
+        run: |
+          pip install -q huggingface_hub
+          python -c "from huggingface_hub import snapshot_download; snapshot_download('ResembleAI/chatterbox', local_dir='m')"
+          mkdir flat
+          cd m
+          find . -type f -not -path './.cache/*' -not -name '.gitattributes' | while read f; do
+            cp "$f" "../flat/$(echo "${f#./}" | tr / _)"
+          done
+          ls -la ../flat
+      - name: Publish as a release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release delete models --repo ${{ github.repository }} --yes || true
+          gh release create models flat/* --repo ${{ github.repository }} --title "Voice models" --notes "Mirror of ResembleAI/chatterbox (MIT licence)"
